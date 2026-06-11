@@ -1,11 +1,4 @@
-local GameName = game:GetService("MarketplaceService"):GetProductInfo(PlaceId).Name
-if GameName then
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "Visual V1",
-        Text = "SCRIPT EJECUTADO, DISFRUTALO",
-        Duration = 5
-    })
-    local a = game:GetService("Players")
+local a = game:GetService("Players")
 local b = a.LocalPlayer
 local c = game:GetService("RunService")
 local d = game:GetService("Workspace")
@@ -658,4 +651,3 @@ as.InputChanged:Connect(function(ax)
         aw(ax)
     end
 end)
-end
