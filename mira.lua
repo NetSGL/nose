@@ -1,558 +1,385 @@
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
-local UserInputService = game:GetService("UserInputService")
-local CoreGui = game:GetService("CoreGui")
-local TweenService = game:GetService("TweenService")
-
-local LocalPlayer = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
-
---// CONFIGURACIÓN
-local Config = {
-    Enabled = true,
-    FOV = 120,
-    MinFOV = 30,
-    MaxFOV = 250,
-    TeamCheck = true,
-    Smoothness = 0.1,
-    CloseRange = 70,
-    MaxDistance = 999999,
-}
-
---// COLORES
-local COLORS = {
-    OFF = Color3.fromRGB(80, 80, 80),
-    NO_TARGET = Color3.fromRGB(255, 50, 50),
-    FAR_TARGET = Color3.fromRGB(255, 150, 0),
-    CLEAR = Color3.fromRGB(0, 255, 100),
-}
-
-local Target = nil
-local TargetStatus = "NONE"
-local TargetDistance = 0
-local TargetPriority = nil
-local AimPartName = "Head"
-local MenuOpen = false
-
---// GUI
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "AimbotV3"
-ScreenGui.Parent = CoreGui
-ScreenGui.ResetOnSpawn = false
-
---// FOV CIRCLE
-local FOV_Circle = Drawing.new("Circle")
-FOV_Circle.Visible = false
-FOV_Circle.Thickness = 2
-FOV_Circle.NumSides = 64
-FOV_Circle.Radius = Config.FOV
-FOV_Circle.Filled = false
-FOV_Circle.Transparency = 0.9
-FOV_Circle.Color = COLORS.NO_TARGET
-
---// MENÚ COMPACTO
-local MenuContainer = Instance.new("Frame")
-MenuContainer.Size = UDim2.new(0, 220, 0, 220)
-MenuContainer.Position = UDim2.new(0, 10, 0, 30)
-MenuContainer.BackgroundTransparency = 1
-MenuContainer.Parent = ScreenGui
-
-local Menu = Instance.new("Frame")
-Menu.Size = UDim2.new(1, 0, 0, 45)
-Menu.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-Menu.ClipsDescendants = true
-Menu.Parent = MenuContainer
-
-local MenuCorner = Instance.new("UICorner")
-MenuCorner.CornerRadius = UDim.new(0, 10)
-MenuCorner.Parent = Menu
-
---// HEADER
-local Header = Instance.new("Frame")
-Header.Size = UDim2.new(1, 0, 0, 45)
-Header.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-Header.Parent = Menu
-
-local HeaderCorner = Instance.new("UICorner")
-HeaderCorner.CornerRadius = UDim.new(0, 10)
-HeaderCorner.Parent = Header
-
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -90, 1, 0)
-Title.Position = UDim2.new(0, 12, 0, 0)
-Title.BackgroundTransparency = 1
-Title.Text = "AIMBOT V3"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextSize = 16
-Title.Font = Enum.Font.GothamBold
-Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.Parent = Header
-
-local StatusDot = Instance.new("Frame")
-StatusDot.Size = UDim2.new(0, 12, 0, 12)
-StatusDot.Position = UDim2.new(1, -70, 0.5, -6)
-StatusDot.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-StatusDot.BorderSizePixel = 0
-StatusDot.Parent = Header
-
-local DotCorner = Instance.new("UICorner")
-DotCorner.CornerRadius = UDim.new(0.5, 0)
-DotCorner.Parent = StatusDot
-
-local ExpandBtn = Instance.new("TextButton")
-ExpandBtn.Size = UDim2.new(0, 38, 0, 38)
-ExpandBtn.Position = UDim2.new(1, -45, 0, 3)
-ExpandBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-ExpandBtn.Text = "▼"
-ExpandBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ExpandBtn.TextSize = 20
-ExpandBtn.Font = Enum.Font.GothamBold
-ExpandBtn.Parent = Header
-
-local ExpandCorner = Instance.new("UICorner")
-ExpandCorner.CornerRadius = UDim.new(0, 8)
-ExpandCorner.Parent = ExpandBtn
-
---// CONTENIDO
-local Content = Instance.new("Frame")
-Content.Size = UDim2.new(1, -16, 1, -55)
-Content.Position = UDim2.new(0, 8, 0, 50)
-Content.BackgroundTransparency = 1
-Content.Parent = Menu
-
---// TOGGLE
-local ToggleFrame = Instance.new("Frame")
-ToggleFrame.Size = UDim2.new(1, 0, 0, 40)
-ToggleFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-ToggleFrame.Parent = Content
-
-local TF_Corner = Instance.new("UICorner")
-TF_Corner.CornerRadius = UDim.new(0, 8)
-TF_Corner.Parent = ToggleFrame
-
-local ToggleLabel = Instance.new("TextLabel")
-ToggleLabel.Size = UDim2.new(0.5, 0, 1, 0)
-ToggleLabel.Position = UDim2.new(0, 10, 0, 0)
-ToggleLabel.BackgroundTransparency = 1
-ToggleLabel.Text = "Auto Aim"
-ToggleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleLabel.TextSize = 14
-ToggleLabel.Font = Enum.Font.Gotham
-ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
-ToggleLabel.Parent = ToggleFrame
-
-local ToggleBtn = Instance.new("TextButton")
-ToggleBtn.Size = UDim2.new(0, 70, 0, 30)
-ToggleBtn.Position = UDim2.new(1, -80, 0.5, -15)
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
-ToggleBtn.Text = "ON"
-ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleBtn.TextSize = 14
-ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.Parent = ToggleFrame
-
-local TB_Corner = Instance.new("UICorner")
-TB_Corner.CornerRadius = UDim.new(0, 6)
-TB_Corner.Parent = ToggleBtn
-
---// FOV CONTROL
-local FOVFrame = Instance.new("Frame")
-FOVFrame.Size = UDim2.new(1, 0, 0, 65)
-FOVFrame.Position = UDim2.new(0, 0, 0, 48)
-FOVFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-FOVFrame.Parent = Content
-
-local FV_Corner = Instance.new("UICorner")
-FV_Corner.CornerRadius = UDim.new(0, 8)
-FV_Corner.Parent = FOVFrame
-
-local FOVLabel = Instance.new("TextLabel")
-FOVLabel.Size = UDim2.new(1, -20, 0, 20)
-FOVLabel.Position = UDim2.new(0, 10, 0, 6)
-FOVLabel.BackgroundTransparency = 1
-FOVLabel.Text = "FOV: " .. Config.FOV
-FOVLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-FOVLabel.TextSize = 12
-FOVLabel.Font = Enum.Font.Gotham
-FOVLabel.TextXAlignment = Enum.TextXAlignment.Left
-FOVLabel.Parent = FOVFrame
-
-local FOVInput = Instance.new("TextBox")
-FOVInput.Size = UDim2.new(0, 70, 0, 28)
-FOVInput.Position = UDim2.new(0, 10, 0, 32)
-FOVInput.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
-FOVInput.Text = tostring(Config.FOV)
-FOVInput.TextColor3 = Color3.fromRGB(255, 255, 255)
-FOVInput.TextSize = 16
-FOVInput.Font = Enum.Font.GothamBold
-FOVInput.ClearTextOnFocus = true
-FOVInput.Parent = FOVFrame
-
-local FI_Corner = Instance.new("UICorner")
-FI_Corner.CornerRadius = UDim.new(0, 6)
-FI_Corner.Parent = FOVInput
-
---// BOTONES RÁPIDOS
-local QuickFrame = Instance.new("Frame")
-QuickFrame.Size = UDim2.new(0, 110, 0, 28)
-QuickFrame.Position = UDim2.new(0, 90, 0, 32)
-QuickFrame.BackgroundTransparency = 1
-QuickFrame.Parent = FOVFrame
-
-local function MakeMiniBtn(text, pos, val, color)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 32, 0, 28)
-    btn.Position = pos
-    btn.BackgroundColor3 = color
-    btn.Text = text
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.TextSize = 11
-    btn.Font = Enum.Font.GothamBold
-    btn.Parent = QuickFrame
-    
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 5)
-    corner.Parent = btn
-    
-    btn.MouseButton1Click:Connect(function()
-        Config.FOV = val
-        FOVInput.Text = tostring(val)
-        FOVLabel.Text = "FOV: " .. val
-        FOV_Circle.Radius = val
-    end)
-end
-
-MakeMiniBtn("S", UDim2.new(0, 0, 0, 0), 60, Color3.fromRGB(0, 100, 150))
-MakeMiniBtn("M", UDim2.new(0, 37, 0, 0), 120, Color3.fromRGB(0, 150, 80))
-MakeMiniBtn("L", UDim2.new(0, 74, 0, 0), 200, Color3.fromRGB(200, 100, 0))
-
---// INFO
-local InfoFrame = Instance.new("Frame")
-InfoFrame.Size = UDim2.new(1, 0, 0, 55)
-InfoFrame.Position = UDim2.new(0, 0, 0, 118)
-InfoFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-InfoFrame.Parent = Content
-
-local IF_Corner = Instance.new("UICorner")
-IF_Corner.CornerRadius = UDim.new(0, 8)
-IF_Corner.Parent = InfoFrame
-
-local InfoText = Instance.new("TextLabel")
-InfoText.Size = UDim2.new(1, -16, 1, -10)
-InfoText.Position = UDim2.new(0, 8, 0, 5)
-InfoText.BackgroundTransparency = 1
-InfoText.Text = "Esperando..."
-InfoText.TextColor3 = Color3.fromRGB(180, 180, 180)
-InfoText.TextSize = 12
-InfoText.Font = Enum.Font.Gotham
-InfoText.TextWrapped = true
-InfoText.TextYAlignment = Enum.TextYAlignment.Top
-InfoText.Parent = InfoFrame
-
---// SISTEMA DE ARRASTRE
-local Dragging = false
-local Offset = nil
-
-Header.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        local pos = input.Position
-        local btnPos = ExpandBtn.AbsolutePosition
-        local btnSize = ExpandBtn.AbsoluteSize
-        
-        if pos.X >= btnPos.X and pos.X <= btnPos.X + btnSize.X and
-           pos.Y >= btnPos.Y and pos.Y <= btnPos.Y + btnSize.Y then
-            return
-        end
-        
-        Dragging = true
-        local menuPos = MenuContainer.AbsolutePosition
-        Offset = Vector2.new(pos.X - menuPos.X, pos.Y - menuPos.Y)
-    end
+local a,b,c,d,e,f=game:GetService("Players"),game:GetService("RunService"),game:GetService("Workspace"),game:GetService("UserInputService"),game:GetService("CoreGui"),game:GetService("TweenService")
+local g,h=a.LocalPlayer,c.CurrentCamera
+local i={Enabled=true,FOV=120,MinFOV=30,MaxFOV=250,TeamCheck=true,Smoothness=0.1,CloseRange=70,MaxDistance=999999}
+local j={OFF=Color3.fromRGB(80,80,80),NO_TARGET=Color3.fromRGB(255,50,50),FAR_TARGET=Color3.fromRGB(255,150,0),CLEAR=Color3.fromRGB(0,255,100)}
+local k,l,m,n,o,p,q=nil,"NONE",0,nil,"Head",false
+local r=Instance.new("ScreenGui")
+r.Name="AimbotV3"
+r.Parent=e
+r.ResetOnSpawn=false
+local s=Drawing.new("Circle")
+s.Visible=false
+s.Thickness=2
+s.NumSides=64
+s.Radius=i.FOV
+s.Filled=false
+s.Transparency=0.9
+s.Color=j.NO_TARGET
+local t=Instance.new("Frame")
+t.Size=UDim2.new(0,220,0,220)
+t.Position=UDim2.new(0,10,0,30)
+t.BackgroundTransparency=1
+t.Parent=r
+local u=Instance.new("Frame")
+u.Size=UDim2.new(1,0,0,45)
+u.BackgroundColor3=Color3.fromRGB(25,25,25)
+u.ClipsDescendants=true
+u.Parent=t
+local v=Instance.new("UICorner")
+v.CornerRadius=UDim.new(0,10)
+v.Parent=u
+local w=Instance.new("Frame")
+w.Size=UDim2.new(1,0,0,45)
+w.BackgroundColor3=Color3.fromRGB(35,35,35)
+w.Parent=u
+local x=Instance.new("UICorner")
+x.CornerRadius=UDim.new(0,10)
+x.Parent=w
+local y=Instance.new("TextLabel")
+y.Size=UDim2.new(1,-90,1,0)
+y.Position=UDim2.new(0,12,0,0)
+y.BackgroundTransparency=1
+y.Text="AIMBOT V3"
+y.TextColor3=Color3.fromRGB(255,255,255)
+y.TextSize=16
+y.Font=Enum.Font.GothamBold
+y.TextXAlignment=Enum.TextXAlignment.Left
+y.Parent=w
+local z=Instance.new("Frame")
+z.Size=UDim2.new(0,12,0,12)
+z.Position=UDim2.new(1,-70,0.5,-6)
+z.BackgroundColor3=Color3.fromRGB(0,255,0)
+z.BorderSizePixel=0
+z.Parent=w
+local A=Instance.new("UICorner")
+A.CornerRadius=UDim.new(0.5,0)
+A.Parent=z
+local B=Instance.new("TextButton")
+B.Size=UDim2.new(0,38,0,38)
+B.Position=UDim2.new(1,-45,0,3)
+B.BackgroundColor3=Color3.fromRGB(50,50,50)
+B.Text="▼"
+B.TextColor3=Color3.fromRGB(255,255,255)
+B.TextSize=20
+B.Font=Enum.Font.GothamBold
+B.Parent=w
+local C=Instance.new("UICorner")
+C.CornerRadius=UDim.new(0,8)
+C.Parent=B
+local D=Instance.new("Frame")
+D.Size=UDim2.new(1,-16,1,-55)
+D.Position=UDim2.new(0,8,0,50)
+D.BackgroundTransparency=1
+D.Parent=u
+local E=Instance.new("Frame")
+E.Size=UDim2.new(1,0,0,40)
+E.BackgroundColor3=Color3.fromRGB(40,40,40)
+E.Parent=D
+local F=Instance.new("UICorner")
+F.CornerRadius=UDim.new(0,8)
+F.Parent=E
+local G=Instance.new("TextLabel")
+G.Size=UDim2.new(0.5,0,1,0)
+G.Position=UDim2.new(0,10,0,0)
+G.BackgroundTransparency=1
+G.Text="Auto Aim"
+G.TextColor3=Color3.fromRGB(255,255,255)
+G.TextSize=14
+G.Font=Enum.Font.Gotham
+G.TextXAlignment=Enum.TextXAlignment.Left
+G.Parent=E
+local H=Instance.new("TextButton")
+H.Size=UDim2.new(0,70,0,30)
+H.Position=UDim2.new(1,-80,0.5,-15)
+H.BackgroundColor3=Color3.fromRGB(0,180,0)
+H.Text="ON"
+H.TextColor3=Color3.fromRGB(255,255,255)
+H.TextSize=14
+H.Font=Enum.Font.GothamBold
+H.Parent=E
+local I=Instance.new("UICorner")
+I.CornerRadius=UDim.new(0,6)
+I.Parent=H
+local J=Instance.new("Frame")
+J.Size=UDim2.new(1,0,0,65)
+J.Position=UDim2.new(0,0,0,48)
+J.BackgroundColor3=Color3.fromRGB(40,40,40)
+J.Parent=D
+local K=Instance.new("UICorner")
+K.CornerRadius=UDim.new(0,8)
+K.Parent=J
+local L=Instance.new("TextLabel")
+L.Size=UDim2.new(1,-20,0,20)
+L.Position=UDim2.new(0,10,0,6)
+L.BackgroundTransparency=1
+L.Text="FOV: "..i.FOV
+L.TextColor3=Color3.fromRGB(200,200,200)
+L.TextSize=12
+L.Font=Enum.Font.Gotham
+L.TextXAlignment=Enum.TextXAlignment.Left
+L.Parent=J
+local M=Instance.new("TextBox")
+M.Size=UDim2.new(0,70,0,28)
+M.Position=UDim2.new(0,10,0,32)
+M.BackgroundColor3=Color3.fromRGB(55,55,55)
+M.Text=tostring(i.FOV)
+M.TextColor3=Color3.fromRGB(255,255,255)
+M.TextSize=16
+M.Font=Enum.Font.GothamBold
+M.ClearTextOnFocus=true
+M.Parent=J
+local N=Instance.new("UICorner")
+N.CornerRadius=UDim.new(0,6)
+N.Parent=M
+local O=Instance.new("Frame")
+O.Size=UDim2.new(0,110,0,28)
+O.Position=UDim2.new(0,90,0,32)
+O.BackgroundTransparency=1
+O.Parent=J
+local function P(Q,R,S,T)
+local U=Instance.new("TextButton")
+U.Size=UDim2.new(0,32,0,28)
+U.Position=R
+U.BackgroundColor3=T
+U.Text=Q
+U.TextColor3=Color3.fromRGB(255,255,255)
+U.TextSize=11
+U.Font=Enum.Font.GothamBold
+U.Parent=O
+local V=Instance.new("UICorner")
+V.CornerRadius=UDim.new(0,5)
+V.Parent=U
+U.MouseButton1Click:Connect(function()
+i.FOV=S
+M.Text=tostring(S)
+L.Text="FOV: "..S
+s.Radius=S
 end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if Dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
-        local newPos = UDim2.new(0, input.Position.X - Offset.X, 0, input.Position.Y - Offset.Y)
-        MenuContainer.Position = newPos
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        Dragging = false
-    end
-end)
-
---// FUNCIONES MEJORADAS
-
--- Verificar si una parte específica es visible (raycast limpio)
-local function IsPartVisible(part, character)
-    if not part then return false end
-    
-    local cameraPos = Camera.CFrame.Position
-    local partPos = part.Position
-    local direction = partPos - cameraPos
-    
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character, character}
-    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-    raycastParams.IgnoreWater = true
-    
-    local result = Workspace:Raycast(cameraPos, direction, raycastParams)
-    
-    return result == nil
 end
-
--- Buscar la mejor parte para apuntar: CABEZA primero, si no → otra
-local function GetBestAimPart(character)
-    -- PRIORIDAD 1: CABEZA (siempre intentar cabeza primero)
-    local head = character:FindFirstChild("Head")
-    if head and IsPartVisible(head, character) then
-        return head, "HEAD"
-    end
-    
-    -- PRIORIDAD 2: HumanoidRootPart (torso centro)
-    local hrp = character:FindFirstChild("HumanoidRootPart")
-    if hrp and IsPartVisible(hrp, character) then
-        return hrp, "TORSO"
-    end
-    
-    -- PRIORIDAD 3: UpperTorso (R15)
-    local upperTorso = character:FindFirstChild("UpperTorso")
-    if upperTorso and IsPartVisible(upperTorso, character) then
-        return upperTorso, "TORSO"
-    end
-    
-    -- PRIORIDAD 4: Cualquier parte visible del cuerpo
-    local bodyParts = {
-        "LeftUpperArm", "RightUpperArm",
-        "LeftLowerArm", "RightLowerArm",
-        "LeftHand", "RightHand",
-        "LeftUpperLeg", "RightUpperLeg",
-        "LeftLowerLeg", "RightLowerLeg",
-        "LeftFoot", "RightFoot",
-    }
-    
-    for _, partName in ipairs(bodyParts) do
-        local part = character:FindFirstChild(partName)
-        if part and IsPartVisible(part, character) then
-            return part, "LIMB"
-        end
-    end
-    
-    -- Nada visible
-    return nil, "NONE"
+P("S",UDim2.new(0,0,0,0),60,Color3.fromRGB(0,100,150))
+P("M",UDim2.new(0,37,0,0),120,Color3.fromRGB(0,150,80))
+P("L",UDim2.new(0,74,0,0),200,Color3.fromRGB(200,100,0))
+local W=Instance.new("Frame")
+W.Size=UDim2.new(1,0,0,55)
+W.Position=UDim2.new(0,0,0,118)
+W.BackgroundColor3=Color3.fromRGB(40,40,40)
+W.Parent=D
+local X=Instance.new("UICorner")
+X.CornerRadius=UDim.new(0,8)
+X.Parent=W
+local Y=Instance.new("TextLabel")
+Y.Size=UDim2.new(1,-16,1,-10)
+Y.Position=UDim2.new(0,8,0,5)
+Y.BackgroundTransparency=1
+Y.Text="Esperando..."
+Y.TextColor3=Color3.fromRGB(180,180,180)
+Y.TextSize=12
+Y.Font=Enum.Font.Gotham
+Y.TextWrapped=true
+Y.TextYAlignment=Enum.TextYAlignment.Top
+Y.Parent=W
+local Z,_=false,nil
+w.InputBegan:Connect(function(aa,ab)
+if ab then return end
+if aa.UserInputType==Enum.UserInputType.Touch or aa.UserInputType==Enum.UserInputType.MouseButton1 then
+local ac=aa.Position
+local ad=B.AbsolutePosition
+local ae=B.AbsoluteSize
+if ac.X>=ad.X and ac.X<=ad.X+ae.X and ac.Y>=ad.Y and ac.Y<=ad.Y+ae.Y then
+return
 end
-
-local function IsValidTarget(player)
-    if player == LocalPlayer then return false end
-    if Config.TeamCheck and player.Team == LocalPlayer.Team then return false end
-    
-    local char = player.Character
-    if not char then return false end
-    
-    local humanoid = char:FindFirstChildOfClass("Humanoid")
-    if not humanoid or humanoid.Health <= 0 then return false end
-    
-    return true
+Z=true
+local af=t.AbsolutePosition
+_=Vector2.new(ac.X-af.X,ac.Y-af.Y)
 end
-
---// FUNCIÓN PRINCIPAL: Buscar target con prioridad de cabeza
-local function FindBestTarget()
-    local closeTargets = {}
-    local farTargets = {}
-    
-    local myChar = LocalPlayer.Character
-    if not myChar then return nil, "NONE", 0, nil, nil, nil end
-    
-    local myPos = myChar:GetPivot().Position
-    
-    for _, player in pairs(Players:GetPlayers()) do
-        if IsValidTarget(player) then
-            local char = player.Character
-            
-            -- Verificar si está en FOV (usar cualquier parte para detección inicial)
-            local detectPart = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head")
-            if not detectPart then continue end
-            
-            local dist = (myPos - detectPart.Position).Magnitude
-            
-            local screenPos, onScreen = Camera:WorldToViewportPoint(detectPart.Position)
-            if onScreen then
-                local center = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-                local screenDist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
-                
-                if screenDist <= Config.FOV then
-                    -- Buscar la mejor parte para apuntar
-                    local aimPart, partType = GetBestAimPart(char)
-                    
-                    if aimPart then
-                        local targetData = {
-                            player = player,
-                            distance = dist,
-                            aimPart = aimPart,
-                            partType = partType,
-                        }
-                        
-                        if dist <= Config.CloseRange then
-                            table.insert(closeTargets, targetData)
-                        else
-                            table.insert(farTargets, targetData)
-                        end
-                    end
-                end
-            end
-        end
-    end
-    
-    -- PRIORIDAD 1: Cercanos (0-70m)
-    if #closeTargets > 0 then
-        table.sort(closeTargets, function(a, b) return a.distance < b.distance end)
-        local best = closeTargets[1]
-        return best.player, "CLEAR", best.distance, best.aimPart, best.partType, "CLOSE"
-    end
-    
-    -- PRIORIDAD 2: Lejanos (71m+)
-    if #farTargets > 0 then
-        table.sort(farTargets, function(a, b) return a.distance < b.distance end)
-        local best = farTargets[1]
-        return best.player, "CLEAR", best.distance, best.aimPart, best.partType, "FAR"
-    end
-    
-    return nil, "NONE", 0, nil, nil, nil
-end
-
-local function AimAt(target, aimPart)
-    if not target or not aimPart then return end
-    
-    local targetPos = aimPart.Position
-    local velocity = aimPart.AssemblyLinearVelocity or Vector3.new(0, 0, 0)
-    targetPos = targetPos + (velocity * 0.08)
-    
-    local targetCFrame = CFrame.new(Camera.CFrame.Position, targetPos)
-    Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, 1 - Config.Smoothness)
-end
-
-local function UpdateVisuals()
-    if not Config.Enabled then
-        FOV_Circle.Visible = false
-        StatusDot.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
-        ToggleBtn.Text = "OFF"
-        InfoText.Text = "OFF - Esperando"
-        InfoText.TextColor3 = Color3.fromRGB(150, 150, 150)
-        return
-    end
-    
-    FOV_Circle.Visible = true
-    StatusDot.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-    ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
-    ToggleBtn.Text = "ON"
-    
-    if not Target then
-        FOV_Circle.Color = COLORS.NO_TARGET
-        FOV_Circle.Thickness = 1.5
-        InfoText.Text = "Buscando... Prioridad: Cabeza"
-        InfoText.TextColor3 = COLORS.NO_TARGET
-        
-    elseif AimPartName == "HEAD" then
-        -- Apuntando a cabeza (daño máximo)
-        FOV_Circle.Color = COLORS.CLEAR
-        FOV_Circle.Thickness = 3.5
-        local rangeText = (TargetPriority == "CLOSE") and "CERCANO" or "LEJANO"
-        InfoText.Text = string.format("🎯 CABEZA %s\n%s | %.0fm | Daño máximo", 
-            rangeText, Target.Name:sub(1, 10), TargetDistance)
-        InfoText.TextColor3 = COLORS.CLEAR
-        
-    else
-        -- Apuntando a torso o extremidad
-        FOV_Circle.Color = COLORS.FAR_TARGET
-        FOV_Circle.Thickness = 2.5
-        local rangeText = (TargetPriority == "CLOSE") and "CERCANO" or "LEJANO"
-        InfoText.Text = string.format("%s %s\n%s | %.0fm | Cabeza bloqueada", 
-            AimPartName, rangeText, Target.Name:sub(1, 10), TargetDistance)
-        InfoText.TextColor3 = COLORS.FAR_TARGET
-    end
-end
-
---// EVENTOS
-ExpandBtn.MouseButton1Click:Connect(function()
-    MenuOpen = not MenuOpen
-    
-    if MenuOpen then
-        ExpandBtn.Text = "▲"
-        TweenService:Create(Menu, TweenInfo.new(0.2), {
-            Size = UDim2.new(1, 0, 0, 180)
-        }):Play()
-    else
-        ExpandBtn.Text = "▼"
-        TweenService:Create(Menu, TweenInfo.new(0.2), {
-            Size = UDim2.new(1, 0, 0, 45)
-        }):Play()
-    end
 end)
-
-ToggleBtn.MouseButton1Click:Connect(function()
-    Config.Enabled = not Config.Enabled
-    if not Config.Enabled then
-        Target = nil
-        TargetStatus = "NONE"
-        TargetPriority = nil
-        AimPartName = "Head"
-    end
-    UpdateVisuals()
+d.InputChanged:Connect(function(ag)
+if Z and(ag.UserInputType==Enum.UserInputType.Touch or ag.UserInputType==Enum.UserInputType.MouseMovement)then
+t.Position=UDim2.new(0,ag.Position.X-_.X,0,ag.Position.Y-_.Y)
+end
 end)
-
-FOVInput.FocusLost:Connect(function()
-    local val = tonumber(FOVInput.Text)
-    if val then
-        val = math.clamp(val, Config.MinFOV, Config.MaxFOV)
-        Config.FOV = val
-        FOVInput.Text = tostring(val)
-        FOVLabel.Text = "FOV: " .. val
-        FOV_Circle.Radius = val
-    else
-        FOVInput.Text = tostring(Config.FOV)
-    end
+d.InputEnded:Connect(function(ah)
+if ah.UserInputType==Enum.UserInputType.Touch or ah.UserInputType==Enum.UserInputType.MouseButton1 then
+Z=false
+end
 end)
-
---// LOOP
-RunService.RenderStepped:Connect(function()
-    local center = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-    FOV_Circle.Position = center
-    FOV_Circle.Radius = Config.FOV
-    
-    if Config.Enabled then
-        local newTarget, status, distance, aimPart, partType, priority = FindBestTarget()
-        
-        Target = newTarget
-        TargetStatus = status
-        TargetDistance = distance
-        TargetPriority = priority
-        AimPartName = partType or "NONE"
-        
-        -- SIEMPRE APUNTA si hay target con parte válida
-        if Target and aimPart then
-            AimAt(Target, aimPart)
-        end
-    else
-        Target = nil
-        TargetStatus = "NONE"
-        TargetDistance = 0
-        TargetPriority = nil
-        AimPartName = "Head"
-    end
-    
-    UpdateVisuals()
+local function ai(aj,ak)
+if not aj then return false end
+local al=h.CFrame.Position
+local am=aj.Position
+local an=am-al
+local ao=RaycastParams.new()
+ao.FilterDescendantsInstances={g.Character,ak}
+ao.FilterType=Enum.RaycastFilterType.Blacklist
+ao.IgnoreWater=true
+return c:Raycast(al,an,ao)==nil
+end
+local function ap(aq)
+local ar=aq:FindFirstChild("Head")
+if ar and ai(ar,aq)then
+return ar,"HEAD"
+end
+local as=aq:FindFirstChild("HumanoidRootPart")
+if as and ai(as,aq)then
+return as,"TORSO"
+end
+local at=aq:FindFirstChild("UpperTorso")
+if at and ai(at,aq)then
+return at,"TORSO"
+end
+local au={"LeftUpperArm","RightUpperArm","LeftLowerArm","RightLowerArm","LeftHand","RightHand","LeftUpperLeg","RightUpperLeg","LeftLowerLeg","RightLowerLeg","LeftFoot","RightFoot"}
+for _,av in ipairs(au)do
+local aw=aq:FindFirstChild(av)
+if aw and ai(aw,aq)then
+return aw,"LIMB"
+end
+end
+return nil,"NONE"
+end
+local function ax(ay)
+if ay==g then return false end
+if i.TeamCheck and ay.Team==g.Team then return false end
+local az=ay.Character
+if not az then return false end
+local aA=az:FindFirstChildOfClass("Humanoid")
+if not aA or aA.Health<=0 then return false end
+return true
+end
+local function aB()
+local aC,aD={},{}
+local aE=g.Character
+if not aE then return nil,"NONE",0,nil,nil,nil end
+local aF=aE:GetPivot().Position
+for _,aG in pairs(a:GetPlayers())do
+if ax(aG)then
+local aH=aG.Character
+local aI=aH:FindFirstChild("HumanoidRootPart")or aH:FindFirstChild("Head")
+if not aI then continue end
+local aJ=(aF-aI.Position).Magnitude
+local aK,aL=h:WorldToViewportPoint(aI.Position)
+if aL then
+local aM=Vector2.new(h.ViewportSize.X/2,h.ViewportSize.Y/2)
+if(Vector2.new(aK.X,aK.Y)-aM).Magnitude<=i.FOV then
+local aN,aO=ap(aH)
+if aN then
+local aP={player=aG,distance=aJ,aimPart=aN,partType=aO}
+if aJ<=i.CloseRange then
+table.insert(aC,aP)
+else
+table.insert(aD,aP)
+end
+end
+end
+end
+end
+end
+if#aC>0 then
+table.sort(aC,function(aQ,aR)return aQ.distance<aR.distance end)
+local aS=aC[1]
+return aS.player,"CLEAR",aS.distance,aS.aimPart,aS.partType,"CLOSE"
+end
+if#aD>0 then
+table.sort(aD,function(aT,aU)return aT.distance<aU.distance end)
+local aV=aD[1]
+return aV.player,"CLEAR",aV.distance,aV.aimPart,aV.partType,"FAR"
+end
+return nil,"NONE",0,nil,nil,nil
+end
+local function aW(aX,aY)
+if not aX or not aY then return end
+local aZ=aY.Position
+local a_=aY.AssemblyLinearVelocity or Vector3.new(0,0,0)
+aZ=aZ+(a_*0.08)
+h.CFrame=h.CFrame:Lerp(CFrame.new(h.CFrame.Position,aZ),1-i.Smoothness)
+end
+local function b0()
+if not i.Enabled then
+s.Visible=false
+z.BackgroundColor3=Color3.fromRGB(255,0,0)
+H.BackgroundColor3=Color3.fromRGB(180,0,0)
+H.Text="OFF"
+Y.Text="OFF - Esperando"
+Y.TextColor3=Color3.fromRGB(150,150,150)
+return
+end
+s.Visible=true
+z.BackgroundColor3=Color3.fromRGB(0,255,0)
+H.BackgroundColor3=Color3.fromRGB(0,180,0)
+H.Text="ON"
+if not k then
+s.Color=j.NO_TARGET
+s.Thickness=1.5
+Y.Text="Buscando... Prioridad: Cabeza"
+Y.TextColor3=j.NO_TARGET
+elseif p=="HEAD"then
+s.Color=j.CLEAR
+s.Thickness=3.5
+local b1=(o=="CLOSE")and"CERCANO"or"LEJANO"
+Y.Text=string.format("🎯 CABEZA %s\n%s | %.0fm | Daño máximo",b1,k.Name:sub(1,10),m)
+Y.TextColor3=j.CLEAR
+else
+s.Color=j.FAR_TARGET
+s.Thickness=2.5
+local b2=(o=="CLOSE")and"CERCANO"or"LEJANO"
+Y.Text=string.format("%s %s\n%s | %.0fm | Cabeza bloqueada",p,b2,k.Name:sub(1,10),m)
+Y.TextColor3=j.FAR_TARGET
+end
+end
+B.MouseButton1Click:Connect(function()
+q=not q
+if q then
+B.Text="▲"
+f:Create(u,TweenInfo.new(0.2),{Size=UDim2.new(1,0,0,180)}):Play()
+else
+B.Text="▼"
+f:Create(u,TweenInfo.new(0.2),{Size=UDim2.new(1,0,0,45)}):Play()
+end
 end)
-
---// Notificación
+H.MouseButton1Click:Connect(function()
+i.Enabled=not i.Enabled
+if not i.Enabled then
+k=nil
+l="NONE"
+o=nil
+p="Head"
+end
+b0()
+end)
+M.FocusLost:Connect(function()
+local b3=tonumber(M.Text)
+if b3 then
+b3=math.clamp(b3,i.MinFOV,i.MaxFOV)
+i.FOV=b3
+M.Text=tostring(b3)
+L.Text="FOV: "..b3
+s.Radius=b3
+else
+M.Text=tostring(i.FOV)
+end
+end)
+b.RenderStepped:Connect(function()
+local b4=Vector2.new(h.ViewportSize.X/2,h.ViewportSize.Y/2)
+s.Position=b4
+s.Radius=i.FOV
+if i.Enabled then
+local b5,b6,b7,b8,b9,ba=aB()
+k=b5
+l=b6
+m=b7
+o=ba
+p=b9 or"NONE"
+if k and b8 then
+aW(k,b8)
+end
+else
+k=nil
+l="NONE"
+m=0
+o=nil
+p="Head"
+end
+b0()
+end)
 pcall(function()
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "Aimbot V3",
-        Text = "Prioridad: Cabeza → Torso → Extremidad",
-        Duration = 4
-    })
+game:GetService("StarterGui"):SetCore("SendNotification",{Title="Aimbot V3",Text="Prioridad: Cabeza → Torso → Extremidad",Duration=4})
 end)
